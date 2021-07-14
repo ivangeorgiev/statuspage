@@ -2,18 +2,12 @@ from django.db import models
 from datetime import datetime
 
 ENUM_ISSUE_STATUS = (
-  ('N', 'New'),
-  ('I', 'Under Investigation'),
-  ('R', 'Resolved'),
-  ('C', 'Closed'),
+  ('New', 'New'),
+  ('Ivestigation', 'Under Investigation'),
+  ('Resolved', 'Resolved'),
+  ('Closed', 'Closed'),
 )
-RESOLVED_ISSUE_STATUSES = ['C', 'R']
-
-ENUM_ISSUE_TAG_SEVERITY = (
-  ('Outage', 'Major outage'),
-  ('Degraded', 'Degraded performance'),
-  ('Minor', 'Minor'),
-)
+RESOLVED_ISSUE_STATUSES = ['Closed', 'Resolved']
 
 class StatusPage(models.Model):
   status_page_id = models.CharField(max_length=255, primary_key=True)
@@ -27,44 +21,12 @@ class StatusPage(models.Model):
   def __str__(self):
     return f'{self.name}'
 
-class SystemCategory(models.Model):
-  system_category_id = models.BigAutoField(primary_key=True)
-  name = models.CharField(max_length=255)
-  rank = models.IntegerField()
-  status_page = models.ForeignKey(StatusPage, on_delete=models.CASCADE, related_name='categories', null=True)
-
-  class Meta:
-    ordering = ('status_page', 'rank', 'name',)
-    verbose_name_plural = 'system categories'
-
-  def __str__(self):
-    groups = self.groups.all()
-    groups_str = ', '.join([f'{g.system_group_id}: {g.name}' for g in groups])
-    return f'{self.rank}. {self.name} [{self.system_category_id}] - [{groups_str}]'
-
-class SystemGroup(models.Model):
-  system_group_id = models.BigAutoField(primary_key=True)
-  name = models.CharField(max_length=255)
-  description = models.TextField(blank=True, null=True)
-  categories = models.ManyToManyField(SystemCategory, related_name='groups')
-  rank = models.IntegerField(default=0)
-
-  class Meta:
-    ordering = ('rank', 'name', 'system_group_id',)
-
-  def __str__(self):
-    systems = self.systems.all()
-    systems_str = ', '.join([f'{s.system_id}: {s.name}' for s in systems])
-    return f'{self.rank}. {self.name} [{self.system_group_id}] - [{systems_str}]'
-
 class System(models.Model):
   system_id = models.CharField(max_length=255, primary_key=True)
   parent_system = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name="subsystems")
   parent_system_id_path = models.CharField(max_length=2048, blank=True, null=True)
   name = models.CharField(max_length=255)
   description = models.TextField(blank=True, null=True)
-  categories = models.ManyToManyField(SystemCategory, related_name='systems', blank=True)
-  groups = models.ManyToManyField(SystemGroup, related_name='systems', blank=True)
   rank = models.IntegerField(default=0)
 
   class Meta:
@@ -78,21 +40,20 @@ class System(models.Model):
     return f'{self.parent_system_id_path} - {self.name}'
 
 
-class IssueTag(models.Model):
-  tag_id = models.BigAutoField(primary_key=True)
-  name = models.CharField(max_length=255)
-  severity = models.CharField(max_length=64, choices=ENUM_ISSUE_TAG_SEVERITY, default='Outage')
-
-  def __str__(self):
-    return f'{self.name}'
-
 class Issue(models.Model):
+
+  ENUM_SEVERITY = (
+    ('Outage', 'Major outage'),
+    ('Degraded', 'Degraded performance'),
+    ('Minor', 'Minor'),
+  )
+
   issue_id = models.BigAutoField(primary_key=True)
   original_issue_id = models.CharField(max_length=255)
   system = models.ForeignKey(System, on_delete=models.CASCADE, related_name='issues')
   title = models.CharField(max_length=255)
+  severity = models.CharField(max_length=32, choices=ENUM_SEVERITY, blank=True, null=True)
   description = models.TextField(blank=True)
-  tags = models.ManyToManyField(IssueTag, blank=True, related_name='issues')
   status = models.CharField(max_length=64, choices=ENUM_ISSUE_STATUS, default='N')
   is_resolved = models.BooleanField(default=False)
   created_at = models.DateTimeField(auto_now_add=True)
@@ -105,4 +66,10 @@ class Issue(models.Model):
     ]
 
   def __str__(self):
-    return f'{self.issue_id}: {self.title}'
+    return f'{self.issue_id}: {self.title} ({self.severity_label(self.severity)}, { dict(ENUM_ISSUE_STATUS)[self.status]})'
+
+  @classmethod
+  def severity_label(cls, severity):
+    return dict(cls.ENUM_SEVERITY)[severity]
+
+

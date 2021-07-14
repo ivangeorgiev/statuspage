@@ -26,5 +26,8 @@ def pre_save_system(sender, instance:System, raw:bool, *args, **kwargs):
   if instance.parent_system:
     parent_system_id_path = f'{instance.parent_system.parent_system_id_path}'
   instance.parent_system_id_path = f'{parent_system_id_path}{instance.rank}/{instance.system_id}/'
-
   
+  for subsystem in instance.subsystems.all():
+    subsystem.parent_system = instance
+    subsystem.save()
+
