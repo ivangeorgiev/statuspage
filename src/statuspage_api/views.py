@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import JsonResponse, HttpResponseNotFound
+from django.http import HttpResponse, JsonResponse, HttpResponseNotFound
 from .models import System, Issue, StatusPage
 from collections import defaultdict
 from django.db.models import Count, F
